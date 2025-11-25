@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metal Properties Virtual Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .canvas-container {
+            position: relative;
+            background: #f0f4f8;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        .tool-btn {
+            transition: all 0.2s;
+        }
+        .tool-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .molecule {
+            animation: float 3s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-atom text-yellow-400 text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-tight">Virtual Metallurgy Lab <span class="text-slate-400 text-sm font-normal ml-2">Sec 4 Chemistry</span></h1>
+            </div>
+            <div class="text-xs bg-slate-800 px-3 py-1 rounded-full">Interactive Module</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-6 max-w-5xl mx-auto w-full space-y-8">
+
+        <!-- Navigation Tabs -->
+        <div class="flex flex-col sm:flex-row gap-2 border-b border-slate-200 pb-1">
+            <button onclick="switchTab('mechanical')" id="tab-mech" class="px-6 py-2 rounded-t-lg font-semibold bg-white text-blue-600 border-t border-x border-slate-200 shadow-sm transition-colors">
+                1. Hardness & Malleability
+            </button>
+            <button onclick="switchTab('chemical')" id="tab-chem" class="px-6 py-2 rounded-t-lg font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                2. Corrosion Resistance
+            </button>
+        </div>
+
+        <!-- SECTION 1: HARDNESS & MALLEABILITY -->
+        <div id="section-mechanical" class="space-y-6 animate-fade-in">
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Controls -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 md:col-span-1 space-y-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 mb-2">Select Material</h2>
+                        <div class="space-y-2">
+                            <button onclick="setLatticeType('pure')" id="btn-pure" class="w-full text-left px-4 py-3 rounded-lg border-2 border-blue-500 bg-blue-50 relative group">
+                                <div class="font-bold text-blue-900">Pure Iron</div>
+                                <div class="text-xs text-blue-600">Regular lattice structure</div>
+                                <i class="fas fa-check-circle absolute top-3 right-3 text-blue-500"></i>
+                            </button>
+                            <button onclick="setLatticeType('alloy')" id="btn-alloy" class="w-full text-left px-4 py-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 bg-white relative group">
+                                <div class="font-bold text-slate-700">Steel (Alloy)</div>
+                                <div class="text-xs text-slate-500">Iron + Carbon atoms</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100 pt-4">
+                        <h2 class="text-lg font-bold text-slate-800 mb-2">Test Property</h2>
+                        <button onclick="applyForce()" class="tool-btn w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-hammer"></i> Apply Shear Force
+                        </button>
+                        <p class="text-xs text-slate-500 mt-2 text-center">Click to hit the metal layer</p>
+                    </div>
+
+                    <div id="mech-explanation" class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-900">
+                        <strong class="block mb-1"><i class="fas fa-info-circle"></i> Observation:</strong>
+                        Select a material and apply force to see how the atoms behave.
+                    </div>
+                </div>
+
+                <!-- Simulation -->
+                <div class="md:col-span-2 space-y-2">
+                    <div class="canvas-container h-80 w-full bg-slate-200 border border-slate-300 relative">
+                        <canvas id="latticeCanvas"></canvas>
+                        <div class="absolute bottom-2 right-2 bg-white/90 px-2 py-1 rounded text-xs text-slate-500 font-mono">
+                            Zoom: 10,000,000x
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-sm text-slate-500 px-1">
+                        <span><span class="inline-block w-3 h-3 rounded-full bg-slate-400 mr-1"></span> Iron Atom</span>
+                        <span id="legend-carbon" class="hidden"><span class="inline-block w-2 h-2 rounded-full bg-slate-800 mr-1"></span> Carbon Atom</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: CORROSION RESISTANCE -->
+        <div id="section-chemical" class="hidden space-y-6">
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Controls -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 md:col-span-1 space-y-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 mb-2">Atmosphere</h2>
+                        <p class="text-sm text-slate-600 mb-4">Simulate exposure to Oxygen and Water over time.</p>
+                        
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="toggleRain(true)" id="btn-rain-start" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium tool-btn">
+                                <i class="fas fa-cloud-showers-heavy mr-1"></i> Expose
+                            </button>
+                            <button onclick="toggleRain(false)" id="btn-rain-stop" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-lg font-medium tool-btn">
+                                Stop
+                            </button>
+                        </div>
+                        <button onclick="resetCorrosion()" class="w-full text-slate-500 text-sm hover:text-slate-800 underline">Reset Experiment</button>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900 text-sm mb-2">Key Comparison</h3>
+                        <ul class="text-xs text-blue-800 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <i class="fas fa-times text-red-500 mt-0.5"></i>
+                                <span><strong>Iron/Steel:</strong> Iron reacts with Oxygen to form porous Hydrated Iron(III) Oxide (Rust).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fas fa-check text-green-600 mt-0.5"></i>
+                                <span><strong>Stainless Steel:</strong> Contains Chromium. Chromium reacts first to form a protective oxide layer.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Simulation -->
+                <div class="md:col-span-2 grid grid-cols-2 gap-4">
+                    <!-- Pure Iron Block -->
+                    <div class="relative bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+                        <div class="absolute top-2 left-2 z-10 bg-slate-900/10 px-2 py-1 rounded text-xs font-bold text-slate-700">Regular Steel</div>
+                        <canvas id="ironCanvas" class="w-full h-64 bg-sky-50"></canvas>
+                        <div id="iron-status" class="p-3 bg-slate-50 border-t border-slate-100 text-xs text-center font-medium text-slate-500">
+                            Surface: Clean
+                        </div>
+                    </div>
+
+                    <!-- Stainless Steel Block -->
+                    <div class="relative bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+                        <div class="absolute top-2 left-2 z-10 bg-blue-900/10 px-2 py-1 rounded text-xs font-bold text-blue-800">Stainless Steel</div>
+                        <!-- CHANGED ID FROM stainless-status TO ss-status FOR CONSISTENCY -->
+                        <canvas id="stainlessCanvas" class="w-full h-64 bg-sky-50"></canvas>
+                        <div id="ss-status" class="p-3 bg-slate-50 border-t border-slate-100 text-xs text-center font-medium text-slate-500">
+                            Surface: Clean
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-slate-100 p-6 mt-8 text-center text-slate-400 text-sm">
+        <p>Sec 4 Science Virtual Lab &bull; Metals & Alloys</p>
+    </footer>
+
+    <script>
+        // --- GLOBAL STATE ---
+        let currentTab = 'mechanical';
+        
+        // --- TAB LOGIC ---
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('section-mechanical').classList.add('hidden');
+            document.getElementById('section-chemical').classList.add('hidden');
+            document.getElementById(`section-${tab}`).classList.remove('hidden');
+
+            // Update Tab Styles
+            const activeClass = "bg-white text-blue-600 border-t border-x border-slate-200 shadow-sm".split(" ");
+            const inactiveClass = "text-slate-500 hover:text-slate-700 hover:bg-slate-100".split(" ");
+
+            const mechBtn = document.getElementById('tab-mech');
+            const chemBtn = document.getElementById('tab-chem');
+
+            // Reset classes
+            mechBtn.className = "px-6 py-2 rounded-t-lg font-semibold transition-colors " + (tab === 'mechanical' ? activeClass.join(" ") : inactiveClass.join(" "));
+            chemBtn.className = "px-6 py-2 rounded-t-lg font-semibold transition-colors " + (tab === 'chemical' ? activeClass.join(" ") : inactiveClass.join(" "));
+
+            if(tab === 'mechanical') {
+                setTimeout(initLattice, 50); // Small delay to ensure container is sized
+            }
+            if(tab === 'chemical') initCorrosion();
+        }
+
+        // --- SECTION 1: LATTICE SIMULATION ---
+        const latCanvas = document.getElementById('latticeCanvas');
+        const latCtx = latCanvas.getContext('2d');
+        let latticeType = 'pure';
+        let isSliding = false;
+        let slideProgress = 0;
+        let atoms = []; // Store atom positions
+        
+        // Configure Canvas Resolution
+        function resizeLatCanvas() {
+            latCanvas.width = latCanvas.parentElement.offsetWidth;
+            latCanvas.height = latCanvas.parentElement.offsetHeight;
+            generateAtoms();
+            drawLattice();
+        }
+        window.addEventListener('resize', resizeLatCanvas);
+
+        function initLattice() {
+            resizeLatCanvas();
+        }
+
+        function generateAtoms() {
+            atoms = [];
+            const atomSize = 25; // Iron Radius
+            const spacing = atomSize * 2.1;
+            const rows = 5;
+            const cols = Math.ceil(latCanvas.width / spacing) + 1;
+            const startX = (latCanvas.width - (cols * spacing)) / 2 + 30;
+            const startY = (latCanvas.height - (rows * spacing)) / 2 + 30;
+
+            // Define Carbon positions for Alloy mode
+            // We place them strategically along the slip boundary (between row 1 and 2)
+            const carbonLocs = [
+                {r: 2, c: 3}, // Original spot
+                {r: 1, c: 7}, // In the moving upper layer
+                {r: 2, c: 10} // Another anchor in lower layer
+            ];
+
+            for(let r = 0; r < rows; r++) {
+                for(let c = 0; c < cols; c++) {
+                    let type = 'Fe';
+                    let ox = 0; // Offset X
+                    let oy = 0; // Offset Y
+                    
+                    // Check if this slot is a Carbon atom
+                    let isCarbon = false;
+                    if (latticeType === 'alloy') {
+                        isCarbon = carbonLocs.some(loc => loc.r === r && loc.c === c);
+                    }
+                    
+                    if (isCarbon) {
+                        type = 'C';
+                    }
+
+                    // DISTORTION LOGIC:
+                    // Iterate through all carbon locations and push neighbors away
+                    if (latticeType === 'alloy') {
+                        carbonLocs.forEach(loc => {
+                            // Check distance in grid coordinates
+                            const dr = r - loc.r;
+                            const dc = c - loc.c;
+
+                            // If immediate neighbor (manhattan distance 1 or diagonal close)
+                            if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1 && !(dr===0 && dc===0)) {
+                                // Push away from carbon center
+                                ox += dc * 8; // Push horizontal
+                                oy += dr * 8; // Push vertical
+                            }
+                        });
+                    }
+
+                    atoms.push({
+                        r: r,
+                        c: c,
+                        baseX: startX + c * spacing + ox,
+                        baseY: startY + r * spacing + oy,
+                        x: startX + c * spacing + ox,
+                        y: startY + r * spacing + oy,
+                        type: type,
+                        isMoving: r < 2 // Top 2 rows move
+                    });
+                }
+            }
+        }
+
+        function setLatticeType(type) {
+            latticeType = type;
+            slideProgress = 0;
+            isSliding = false;
+            generateAtoms(); // Regenerate grid with/without distortion
+            
+            // UI Update
+            const btnPure = document.getElementById('btn-pure');
+            const btnAlloy = document.getElementById('btn-alloy');
+            const explanation = document.getElementById('mech-explanation');
+            const legendC = document.getElementById('legend-carbon');
+
+            if(type === 'pure') {
+                btnPure.className = "w-full text-left px-4 py-3 rounded-lg border-2 border-blue-500 bg-blue-50 relative group";
+                btnAlloy.className = "w-full text-left px-4 py-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 bg-white relative group";
+                explanation.innerHTML = `<strong class="block mb-1 text-amber-800"><i class="fas fa-info-circle"></i> Pure Iron:</strong> Layers are regular. The slip planes (dotted lines) are straight, allowing easy sliding.`;
+                legendC.classList.add('hidden');
+                if(btnAlloy.querySelector('.fa-check-circle')) btnAlloy.querySelector('.fa-check-circle').remove();
+                if(!btnPure.querySelector('.fa-check-circle')) btnPure.innerHTML += '<i class="fas fa-check-circle absolute top-3 right-3 text-blue-500"></i>';
+            } else {
+                btnPure.className = "w-full text-left px-4 py-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 bg-white relative group";
+                btnAlloy.className = "w-full text-left px-4 py-3 rounded-lg border-2 border-blue-500 bg-blue-50 relative group";
+                explanation.innerHTML = `<strong class="block mb-1 text-amber-800"><i class="fas fa-info-circle"></i> Alloy (Steel):</strong> Carbon atoms are smaller (~0.6x Iron size). They fit in spaces but distort the lattice, jamming the slip planes.`;
+                legendC.classList.remove('hidden');
+                if(btnPure.querySelector('.fa-check-circle')) btnPure.querySelector('.fa-check-circle').remove();
+                if(!btnAlloy.querySelector('.fa-check-circle')) btnAlloy.innerHTML += '<i class="fas fa-check-circle absolute top-3 right-3 text-blue-500"></i>';
+            }
+            drawLattice();
+        }
+
+        function applyForce() {
+            if(isSliding) return;
+            isSliding = true;
+            slideProgress = 0;
+            animateSlide();
+            
+             const explanation = document.getElementById('mech-explanation');
+             if (latticeType === 'pure') {
+                explanation.innerHTML = `<strong class="block mb-1 text-green-700"><i class="fas fa-arrow-right"></i> Malleable!</strong> The layers slide smoothly over the straight slip planes.`;
+            } else {
+                explanation.innerHTML = `<strong class="block mb-1 text-red-700"><i class="fas fa-hand-paper"></i> Hard / Brittle!</strong> The layers get "jammed" at multiple points due to the carbon atoms distorting the path.`;
+            }
+        }
+
+        function animateSlide() {
+            if(!isSliding) return;
+
+            // Animation Logic
+            slideProgress += 0.04;
+            
+            // Limit slide for Alloy
+            let maxSlide = latticeType === 'pure' ? 1.0 : 0.45; 
+            
+            if (slideProgress < 1.0) {
+                // Easing
+                let ease = 1 - Math.pow(1 - slideProgress, 3); // Cubic out
+                let currentDisp = ease * 60; // Max displacement pixels
+
+                // If Alloy, Cap the movement and bounce
+                if(latticeType === 'alloy') {
+                    if(slideProgress > maxSlide) {
+                         // Bounce effect simulating collision
+                         currentDisp = (maxSlide * 60) + Math.sin(slideProgress * 40) * 3;
+                    } else {
+                        currentDisp = slideProgress * 60; // Linear approach
+                    }
+                }
+
+                // Update atom positions
+                atoms.forEach(atom => {
+                    if(atom.isMoving) {
+                        atom.x = atom.baseX + currentDisp;
+                    }
+                });
+
+                drawLattice();
+                
+                // Stop alloy early visually
+                if(latticeType === 'alloy' && slideProgress > 0.8) {
+                    isSliding = false;
+                     // Draw "Blocked" indicator handled in drawLattice
+                } else if (latticeType === 'pure' && slideProgress >= 0.99) {
+                     isSliding = false;
+                } else {
+                    requestAnimationFrame(animateSlide);
+                }
+            }
+        }
+
+        function drawLattice() {
+            latCtx.clearRect(0, 0, latCanvas.width, latCanvas.height);
+            
+            // 1. Draw Slip Planes (Lines between rows)
+            // We draw lines between row 1 and 2 mainly
+            latCtx.beginPath();
+            latCtx.strokeStyle = latticeType === 'pure' ? "#94a3b8" : "#ef4444"; // Grey vs Red lines
+            latCtx.setLineDash([5, 5]);
+            latCtx.lineWidth = 2;
+            
+            // Draw a path following the "gap" between row 1 and 2
+            // We calculate the average Y between row 1 and 2 for each column
+            let cols = 10; // Approximate
+            let started = false;
+            
+            // Find atoms in row 1 and 2 to trace the line
+            let row1 = atoms.filter(a => a.r === 1).sort((a,b) => a.c - b.c);
+            let row2 = atoms.filter(a => a.r === 2).sort((a,b) => a.c - b.c);
+            
+            if(row1.length > 0 && row2.length > 0) {
+                 latCtx.moveTo(row1[0].x - 30, (row1[0].y + row2[0].y)/2);
+                 for(let i=0; i<Math.min(row1.length, row2.length); i++) {
+                     let mx = (row1[i].x + row2[i].x) / 2;
+                     let my = (row1[i].y + row2[i].y) / 2;
+                     latCtx.lineTo(mx, my);
+                 }
+                 latCtx.stroke();
+            }
+            latCtx.setLineDash([]); // Reset
+
+            // Label "Slip Plane"
+            latCtx.fillStyle = latticeType === 'pure' ? "#64748b" : "#ef4444";
+            latCtx.font = "italic 12px Arial";
+            latCtx.fillText(latticeType === 'pure' ? "Smooth Slip Plane" : "Distorted Slip Plane", 10, latCanvas.height - 10);
+
+
+            // 2. Draw Atoms
+            atoms.forEach(atom => {
+                latCtx.beginPath();
+                // SCALE ADJUSTMENT: 
+                // Iron Radius ~126pm, Carbon Radius ~77pm. Ratio approx 0.6.
+                // If Iron is 25px, Carbon should be ~15px.
+                const r = atom.type === 'C' ? 15 : 25; 
+                
+                if (atom.type === 'C') {
+                    // Carbon
+                    latCtx.arc(atom.x, atom.y, r, 0, Math.PI * 2);
+                    latCtx.fillStyle = "#1e293b"; // Dark
+                    latCtx.fill();
+                    // Ring to show it's the disruptor
+                    latCtx.strokeStyle = "#f59e0b"; // Orange ring
+                    latCtx.lineWidth = 2;
+                    latCtx.stroke();
+                } else {
+                    // Iron
+                    latCtx.arc(atom.x, atom.y, r, 0, Math.PI * 2);
+                    let grd = latCtx.createRadialGradient(atom.x - 5, atom.y - 5, 2, atom.x, atom.y, r);
+                    grd.addColorStop(0, "#cbd5e1");
+                    grd.addColorStop(1, "#64748b");
+                    latCtx.fillStyle = grd;
+                    latCtx.fill();
+                    latCtx.strokeStyle = "#475569";
+                    latCtx.lineWidth = 1;
+                    latCtx.stroke();
+                }
+            });
+
+            // 3. Draw Blocked Indicator if Alloy + Moved
+            if(latticeType === 'alloy' && atoms[0].x > atoms[0].baseX + 10) {
+                 latCtx.fillStyle = "rgba(220, 38, 38, 0.9)";
+                 latCtx.font = "bold 16px Arial";
+                 latCtx.fillText("BLOCKED", latCanvas.width/2 - 40, 30);
+                 
+                 // Draw X mark at the collision points
+                 // Find all carbons
+                 const carbons = atoms.filter(a => a.type === 'C');
+                 carbons.forEach(c => {
+                     latCtx.strokeStyle = "red";
+                     latCtx.lineWidth = 3;
+                     latCtx.beginPath();
+                     latCtx.moveTo(c.x - 10, c.y - 35);
+                     latCtx.lineTo(c.x + 10, c.y - 15);
+                     latCtx.moveTo(c.x + 10, c.y - 35);
+                     latCtx.lineTo(c.x - 10, c.y - 15);
+                     latCtx.stroke();
+                 });
+            }
+
+            // 4. Force Arrow
+            if(isSliding || atoms[0].x > atoms[0].baseX) {
+                latCtx.fillStyle = "rgba(239, 68, 68, 0.8)";
+                latCtx.beginPath();
+                let arrowY = 40;
+                latCtx.moveTo(20, arrowY - 10);
+                latCtx.lineTo(60, arrowY - 10);
+                latCtx.lineTo(60, arrowY - 20);
+                latCtx.lineTo(90, arrowY);
+                latCtx.lineTo(60, arrowY + 20);
+                latCtx.lineTo(60, arrowY + 10);
+                latCtx.lineTo(20, arrowY + 10);
+                latCtx.fill();
+            }
+        }
+
+        // --- SECTION 2: CORROSION SIMULATION ---
+        const ironCanvas = document.getElementById('ironCanvas');
+        const ssCanvas = document.getElementById('stainlessCanvas');
+        const ironCtx = ironCanvas.getContext('2d');
+        const ssCtx = ssCanvas.getContext('2d');
+        
+        let rainInterval;
+        let particles = [];
+        let isRaining = false;
+        let surfaceStatus = { iron: 0, ss: 0 }; // 0-100% damage/protection
+
+        function initCorrosion() {
+            ironCanvas.width = ironCanvas.offsetWidth;
+            ironCanvas.height = ironCanvas.offsetHeight;
+            ssCanvas.width = ssCanvas.offsetWidth;
+            ssCanvas.height = ssCanvas.offsetHeight;
+            drawSurfaces();
+        }
+
+        function resetCorrosion() {
+            toggleRain(false);
+            particles = [];
+            surfaceStatus = { iron: 0, ss: 0 };
+            document.getElementById('iron-status').innerHTML = "Surface: Clean";
+            document.getElementById('iron-status').className = "p-3 bg-slate-50 border-t border-slate-100 text-xs text-center font-medium text-slate-500";
+            
+            // CHANGED FROM stainless-status TO ss-status
+            document.getElementById('ss-status').innerHTML = "Surface: Clean";
+             document.getElementById('ss-status').className = "p-3 bg-slate-50 border-t border-slate-100 text-xs text-center font-medium text-slate-500";
+            drawSurfaces();
+        }
+
+        function toggleRain(active) {
+            isRaining = active;
+            const btnStart = document.getElementById('btn-rain-start');
+            const btnStop = document.getElementById('btn-rain-stop');
+
+            if(active) {
+                btnStart.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500');
+                btnStop.classList.remove('ring-2');
+                if(!rainInterval) corrosionLoop();
+            } else {
+                btnStart.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500');
+                btnStop.classList.add('ring-2');
+            }
+        }
+
+        function spawnParticle() {
+            if(!isRaining) return;
+            // Spawn random O2 or H2O
+            particles.push({
+                x: Math.random() * ironCanvas.width,
+                y: -10,
+                speed: 2 + Math.random() * 2,
+                type: Math.random() > 0.5 ? 'O2' : 'H2O'
+            });
+        }
+
+        function corrosionLoop() {
+            if(!isRaining && particles.length === 0) {
+                rainInterval = null;
+                return;
+            }
+
+            spawnParticle();
+
+            // Clear & Redraw BG
+            ironCtx.clearRect(0,0,ironCanvas.width, ironCanvas.height);
+            ssCtx.clearRect(0,0,ssCanvas.width, ssCanvas.height);
+
+            drawMetalBlock(ironCtx, 'iron', surfaceStatus.iron);
+            drawMetalBlock(ssCtx, 'ss', surfaceStatus.ss);
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.y += p.speed;
+
+                const surfaceY = ironCanvas.height - 80;
+
+                // Hit detection
+                if (p.y >= surfaceY) {
+                    
+                    // IRON LOGIC
+                    if (surfaceStatus.iron < 100) {
+                        surfaceStatus.iron += 0.5;
+                        updateStatusText('iron', surfaceStatus.iron);
+                    }
+                    
+                    // STAINLESS LOGIC
+                    // The chromium reacts immediately to form a layer, deflecting oxygen
+                    if (surfaceStatus.ss < 100) {
+                        surfaceStatus.ss += 2; // Forms layer fast
+                        updateStatusText('ss', surfaceStatus.ss);
+                    }
+
+                    // Remove particle or bounce
+                    if (surfaceStatus.ss > 20) {
+                        // Stainless bounces particles once protected
+                        // But for simplicity in this loop we just remove them and show the effect in the drawMetalBlock
+                    }
+                    
+                    particles.splice(i, 1);
+                } else {
+                    // Draw Particle on both canvases (mirrored simulation)
+                    drawParticle(ironCtx, p);
+                    
+                    // For Stainless, if layer is formed, particles bounce off invisible shield
+                    let shieldedY = surfaceY - 10;
+                    if (p.y > shieldedY && surfaceStatus.ss > 20) {
+                        // Bounce effect visual hack
+                        drawParticle(ssCtx, { ...p, y: p.y - 10, type: 'bounce' });
+                        particles.splice(i, 1); // "Reflected"
+                    } else {
+                        drawParticle(ssCtx, p);
+                    }
+                }
+            }
+
+            rainInterval = requestAnimationFrame(corrosionLoop);
+        }
+
+        function drawMetalBlock(ctx, type, status) {
+            const h = ctx.canvas.height;
+            const w = ctx.canvas.width;
+            const floorH = 80;
+
+            // Metal Body
+            ctx.fillStyle = type === 'iron' ? "#94a3b8" : "#cbd5e1"; // Iron darker, SS lighter/shiny
+            ctx.fillRect(0, h - floorH, w, floorH);
+
+            // RUST LAYER (Iron Only)
+            if (type === 'iron' && status > 0) {
+                ctx.fillStyle = `rgba(180, 83, 9, ${status / 100})`; // Rust color
+                // Draw jagged rust surface
+                ctx.beginPath();
+                ctx.moveTo(0, h - floorH);
+                for(let i=0; i<=w; i+=10) {
+                    ctx.lineTo(i, h - floorH - (Math.random() * status/5));
+                }
+                ctx.lineTo(w, h);
+                ctx.lineTo(0, h);
+                ctx.fill();
+            }
+
+            // CHROMIUM OXIDE LAYER (SS Only)
+            if (type === 'ss' && status > 0) {
+                const opacity = Math.min(status/20, 0.6); // Max opacity
+                ctx.strokeStyle = `rgba(56, 189, 248, ${opacity})`; // Cyan glow
+                ctx.lineWidth = 4;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = "#0ea5e9";
+                
+                ctx.beginPath();
+                ctx.moveTo(0, h - floorH - 2);
+                ctx.lineTo(w, h - floorH - 2);
+                ctx.stroke();
+                
+                // Reset shadow
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function drawParticle(ctx, p) {
+            ctx.beginPath();
+            if (p.type === 'bounce') {
+                 ctx.fillStyle = "rgba(255,255,255,0.5)";
+                 ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+            } else {
+                ctx.fillStyle = p.type === 'O2' ? "#ef4444" : "#3b82f6"; // Red O2, Blue H2O
+                ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+            }
+            ctx.fill();
+        }
+
+        function updateStatusText(type, val) {
+            const el = document.getElementById(`${type}-status`);
+            if (!el) return; // ADDED GUARD CLAUSE
+            
+            if(type === 'iron') {
+                if(val > 20) {
+                    el.innerText = `RUSTING: ${(val).toFixed(0)}% Surface Damage`;
+                    el.className = "p-3 bg-orange-50 border-t border-orange-100 text-xs text-center font-bold text-orange-700";
+                }
+            } else {
+                if(val > 20) {
+                    el.innerText = "PASSIVE LAYER FORMED: Impervious to Oxygen";
+                    el.className = "p-3 bg-blue-50 border-t border-blue-100 text-xs text-center font-bold text-blue-700";
+                }
+            }
+        }
+        
+        function drawSurfaces() {
+            drawMetalBlock(ironCtx, 'iron', surfaceStatus.iron);
+            drawMetalBlock(ssCtx, 'ss', surfaceStatus.ss);
+        }
+
+        // Initialize First Tab
+        setTimeout(() => {
+            initLattice();
+        }, 100);
+
+        function initLattice() {
+            resizeLatCanvas();
+        }
+
+    </script>
+</body>
+</html>
